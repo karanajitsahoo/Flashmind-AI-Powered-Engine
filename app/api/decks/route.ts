@@ -16,7 +16,7 @@ export async function GET() {
 
     const decksWithStats = await Promise.all(
       decks.map(async (deck) => {
-        const deckId = deck._id.toString()
+      const deckId = (deck._id as any).toString()
 
         const dueCount = await Flashcard.countDocuments({
           deckId,
