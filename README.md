@@ -27,7 +27,7 @@ Turn any PDF into an **intelligent learning system** with AI-powered MCQs, conce
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/rexxyydv/flashcard-engine.git
+git git clone https://github.com/karanajitsahoo/flashcard-engine-Cuemath-.git
 cd flashcard-engine
 npm install
 ```
