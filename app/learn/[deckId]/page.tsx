@@ -59,7 +59,15 @@ export default function LearnPage() {
     try {
       const res = await fetch(`/api/learn?deckId=${deckId}`)
       if (!res.ok) throw new Error('Failed to load')
-      const data = await res.json()
+      let data
+
+try {
+  data = await res.json()
+} catch (err) {
+  const text = await res.text()
+  console.error("RAW RESPONSE:", text)
+  throw new Error("Server returned invalid response")
+}
       setCards(data.cards || [])
     } catch {
       setError('Failed to load learning cards.')

@@ -130,8 +130,12 @@ export async function POST(req: NextRequest) {
       conceptSummary,
       overallStats: { totalQuestions: uniquePractice.length, attempted: 0, correct: 0, accuracy: 0 },
     })
-  } catch (err) {
-    console.error('Generate error:', err)
-    return NextResponse.json({ error: 'Failed to generate flashcards' }, { status: 500 })
-  }
+  } catch (err: any) {
+  console.error('Generate error:', err)
+
+  return NextResponse.json({
+    error: 'Failed to generate flashcards',
+    details: err?.message || 'Unknown error'
+  }, { status: 500 })
+}
 }
