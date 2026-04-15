@@ -55,11 +55,12 @@ export default function LearnPage() {
   }
 
   const fetchCards = useCallback(async () => {
+    if (!deckId) return
     try {
       const res = await fetch(`/api/learn?deckId=${deckId}`)
       if (!res.ok) throw new Error('Failed to load')
       const data = await res.json()
-      setCards((data.cards || []).filter((card: any) => card.type === 'mcq'))
+      setCards(data.cards || [])
     } catch {
       setError('Failed to load learning cards.')
     } finally {

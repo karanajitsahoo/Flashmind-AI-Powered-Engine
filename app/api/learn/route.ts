@@ -13,7 +13,13 @@ export async function GET(req: NextRequest) {
 
     await connectDB()
 
-    const cards = await LearningCard.find({ deckId }).sort({ order: 1 }).lean()
+    console.log("Fetching learning cards for deckId:", deckId)
+
+    const cards = await LearningCard.find({ deckId: deckId.toString() })
+      .sort({ order: 1 })
+      .lean()
+
+    console.log("Learning cards found:", cards.length)
 
     return NextResponse.json({
       cards: cards.map(c => ({ ...c, _id: c._id.toString() })),

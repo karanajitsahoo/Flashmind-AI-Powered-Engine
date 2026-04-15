@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Learning cards (whole text)
-    let learningCardsRaw = await generateLearningCards(text)
+    let learningCardsRaw = await generateLearningCards(text) || []
+    console.log("Learning cards generated:", learningCardsRaw.length)
 
     if (allPracticeCards.length === 0 && learningCardsRaw.length === 0) {
       await Deck.findByIdAndDelete(deck._id)
@@ -94,12 +95,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Insert learning cards ─────────────────────────────────────────────────
-    if (learningCardsRaw.length > 0) {
+    if (Array.isArray(learningCardsRaw) && learningCardsRaw.length > 0) {
       await LearningCard.insertMany(
         learningCardsRaw.map((card, i) => ({
           deckId,
-          title: card.title,
-          content: card.content,
+          title: card.title || 'Untitled',
+          content: card.content || '',
           example: card.example || '',
           difficulty: ['easy', 'medium', 'hard'].includes(card.difficulty) ? card.difficulty : 'medium',
           concept: card.concept || 'General',
