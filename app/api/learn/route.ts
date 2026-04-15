@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongodb'
 import { LearningCard } from '@/models/LearningCard'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {

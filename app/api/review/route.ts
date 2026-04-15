@@ -6,6 +6,7 @@ import { Deck } from '@/models/Deck'
 import { calculateNextReview } from '@/lib/spacedRepetition'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // GET /api/review?deckId=xxx — get due cards
 export async function GET(req: NextRequest) {
