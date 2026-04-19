@@ -33,8 +33,8 @@ export default function UploadBox({ onFile, disabled }: UploadBoxProps) {
       {...getRootProps()}
       className={`relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-200 ${
         isDragActive || dragActive
-          ? 'border-accent bg-accent/5 scale-[1.01]'
-          : 'border-ink-200 hover:border-ink-400 hover:bg-ink-50'
+          ? 'border-accent bg-accent/10 scale-[1.01]'
+          : 'border-ink hover:border-ink hover:bg-ink/30'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <input {...getInputProps()} />
@@ -57,12 +57,12 @@ export default function UploadBox({ onFile, disabled }: UploadBoxProps) {
           <p className="text-ink font-medium text-lg mb-1">
             {isDragActive ? 'Drop your PDF here' : 'Drag & drop your PDF'}
           </p>
-          <p className="text-ink-400 text-sm">
-            or <span className="text-accent font-medium underline underline-offset-2">click to browse</span>
+          <p className="text-ink text-sm">
+            or <span className="text-ink font-medium underline underline-offset-2">click to browse</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-ink-300">
+        <div className="flex items-center gap-2 text-xs text-ink">
           <span>PDF only</span>
           <span>·</span>
           <span>Max 10MB</span>

@@ -16,12 +16,23 @@ export async function GET() {
 
     const decksWithStats = await Promise.all(
       decks.map(async (deck) => {
-      const deckId = (deck._id as any).toString()
+        const deckId = (deck._id as any).toString()
 
         const dueCount = await Flashcard.countDocuments({
           deckId,
           nextReviewDate: { $lte: now },
         })
+        const totalCards = await Flashcard.countDocuments({ deckId })
+
+        const reviewedCards = await ReviewLog.distinct('flashcardId', {
+          deckId
+        })
+
+        const completed = reviewedCards.length
+
+        const progress = totalCards > 0
+          ? Math.round((completed / totalCards) * 100)
+          : 0
 
         const totalReviews = await ReviewLog.countDocuments({ deckId })
         const correctReviews = await ReviewLog.countDocuments({ deckId, wasCorrect: true })
@@ -31,6 +42,7 @@ export async function GET() {
           _id: deckId,
           dueCount,
           accuracy: totalReviews > 0 ? Math.round((correctReviews / totalReviews) * 100) : null,
+          progress,
         }
       })
     )

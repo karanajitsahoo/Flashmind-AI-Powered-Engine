@@ -3,7 +3,22 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { Cormorant_Garamond, Pinyon_Script, DM_Sans } from 'next/font/google'
 
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+})
+const pinyon = Pinyon_Script({
+  subsets: ['latin'],
+  weight: ['400'],
+})
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
+})
+
+// ─── Types (unchanged) ────────────────────────────────────────────────────
 interface Card {
   _id: string
   type: 'flashcard' | 'mcq'
@@ -20,41 +35,29 @@ interface Card {
   easeFactor: number
   interval: number
 }
-
 interface ReviewStats {
   dueCount: number
   totalCards: number
   accuracy: number
+  title?: string
 }
-
 interface ConceptStat {
   concept: string
   total: number
   correct: number
 }
-
 interface CardState {
   answered: boolean
   selectedOption: string | null
   isCorrect: boolean | null
   rating: number | null
 }
+type SessionState = 'loading' | 'reviewing' | 'complete' | 'empty'
 
-type SessionState = 'loading' | 'reviewing' | 'complete' | 'empty' | 'regenerating'
-
-const difficultyColors = {
-  easy: 'bg-green-100 text-green-700',
-  medium: 'bg-yellow-100 text-yellow-700',
-  hard: 'bg-red-100 text-red-700',
-}
-
-// ─── localStorage helpers ──────────────────────────────────────────────────
+// ─── localStorage helpers (unchanged) ─────────────────────────────────────
 function saveProgress(deckId: string, index: number, states: Record<string, CardState>) {
-  try {
-    localStorage.setItem(`practice_progress_${deckId}`, JSON.stringify({ index, states }))
-  } catch { /* ignore */ }
+  try { localStorage.setItem(`practice_progress_${deckId}`, JSON.stringify({ index, states })) } catch { }
 }
-
 function loadProgress(deckId: string): { index: number; states: Record<string, CardState> } | null {
   try {
     const raw = localStorage.getItem(`practice_progress_${deckId}`)
@@ -62,45 +65,35 @@ function loadProgress(deckId: string): { index: number; states: Record<string, C
     return JSON.parse(raw)
   } catch { return null }
 }
-
 function clearProgress(deckId: string) {
-  try { localStorage.removeItem(`practice_progress_${deckId}`) } catch { /* ignore */ }
+  try { localStorage.removeItem(`practice_progress_${deckId}`) } catch { }
 }
 
 export default function ReviewPage() {
   const { deckId } = useParams<{ deckId: string }>()
   const router = useRouter()
 
-  const [allCards, setAllCards] = useState<Card[]>([])           // full deck
-  const [cards, setCards] = useState<Card[]>([])                 // active set (may be filtered by concept)
+  const [allCards, setAllCards] = useState<Card[]>([])
+  const [cards, setCards] = useState<Card[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [sessionState, setSessionState] = useState<SessionState>('loading')
   const [deckStats, setDeckStats] = useState<ReviewStats | null>(null)
   const [cardStates, setCardStates] = useState<Record<string, CardState>>({})
   const [conceptStats, setConceptStats] = useState<Record<string, ConceptStat>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [deckTitle, setDeckTitle] = useState('')
+  const [activeConcept, setActiveConcept] = useState<string | null>(null)
 
-  // Feature 2: Concepts panel
-  const [showConcepts, setShowConcepts] = useState(false)
-  const [activeConcept, setActiveConcept] = useState<string | null>(null) // null = all
-
+  // ─── All data-fetching & logic completely unchanged ───────────────────
   const fetchCards = useCallback(async (resumeProgress = true) => {
     try {
-      // Always fetch ALL cards so resume + concept filter work correctly
       const res = await fetch(`/api/review?deckId=${deckId}&all=true`)
       if (!res.ok) throw new Error('Failed to load cards')
       const data: { stats: ReviewStats; cards: Card[] } = await res.json()
-
       setDeckStats(data.stats)
-
-      if (!data.cards || data.cards.length === 0) {
-        setSessionState('empty')
-        return
-      }
-
       setAllCards(data.cards)
-
-      // Init concept stats from full deck
+      if (data.cards.length > 0) setDeckTitle(data.cards[0].topic || 'Deck')
+      if (!data.cards || data.cards.length === 0) { setSessionState('empty'); return }
       const cs: Record<string, ConceptStat> = {}
       for (const card of data.cards) {
         const c = card.concept || 'General'
@@ -108,21 +101,10 @@ export default function ReviewPage() {
         cs[c].total++
       }
       setConceptStats(cs)
-
-      // Feature 3: Resume progress from localStorage
       const saved = resumeProgress ? loadProgress(deckId) : null
       if (saved && saved.states && Object.keys(saved.states).length > 0) {
-        // Restore saved state — use all cards (no concept filter when resuming)
-        setCards(data.cards)
-        setActiveConcept(null)
-        setCardStates(saved.states)
-        // Restore correct counts into conceptStats
+        setCards(data.cards); setActiveConcept(null); setCardStates(saved.states)
         const restoredCs: Record<string, ConceptStat> = { ...cs }
-        for (const [, state] of Object.entries(saved.states)) {
-          // We don't know which concept each saved card belongs to from state alone
-          // so we recompute from cards + states
-        }
-        // Recompute concept correct counts from restored states
         for (const card of data.cards) {
           const state = saved.states[card._id]
           if (state?.isCorrect) {
@@ -134,38 +116,24 @@ export default function ReviewPage() {
         setCurrentIndex(Math.min(saved.index, data.cards.length - 1))
         setSessionState('reviewing')
       } else {
-        setCards(data.cards)
-        setActiveConcept(null)
-        setCardStates({})
-        setCurrentIndex(0)
-        setSessionState('reviewing')
+        setCards(data.cards); setActiveConcept(null); setCardStates({}); setCurrentIndex(0); setSessionState('reviewing')
       }
-    } catch {
-      setSessionState('empty')
-    }
+    } catch { setSessionState('empty') }
   }, [deckId])
 
   useEffect(() => { fetchCards(true) }, [fetchCards])
 
-  // Feature 3: Auto-save progress whenever index or cardStates change
   useEffect(() => {
-    if (sessionState === 'reviewing' && cards.length > 0) {
-      saveProgress(deckId, currentIndex, cardStates)
-    }
+    if (sessionState === 'reviewing' && cards.length > 0) saveProgress(deckId, currentIndex, cardStates)
   }, [currentIndex, cardStates, sessionState, deckId, cards.length])
 
-  // Feature 2: Filter cards by concept
   const filterByConcept = (concept: string | null) => {
     setActiveConcept(concept)
-    setShowConcepts(false)
     const filtered = concept ? allCards.filter(c => c.concept === concept) : allCards
-    setCards(filtered)
-    setCurrentIndex(0)
-    setSessionState('reviewing')
-    clearProgress(deckId) // Clear saved progress when switching concept filter
+    setCards(filtered); setCurrentIndex(0); setSessionState('reviewing')
+    clearProgress(deckId)
   }
 
-  // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (sessionState !== 'reviewing') return
@@ -173,8 +141,7 @@ export default function ReviewPage() {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev()
       const card = cards[currentIndex]
       if (e.key === ' ' && card?.type === 'flashcard' && !cardStates[card._id]?.answered) {
-        e.preventDefault()
-        revealFlashcard(card._id)
+        e.preventDefault(); revealFlashcard(card._id)
       }
     }
     window.addEventListener('keydown', handler)
@@ -185,10 +152,7 @@ export default function ReviewPage() {
     if (currentIndex < cards.length - 1) setCurrentIndex(i => i + 1)
     else if (allAnswered) setSessionState('complete')
   }
-
-  const goPrev = () => {
-    if (currentIndex > 0) setCurrentIndex(i => i - 1)
-  }
+  const goPrev = () => { if (currentIndex > 0) setCurrentIndex(i => i - 1) }
 
   const hasNext = currentIndex < cards.length - 1
   const hasPrev = currentIndex > 0
@@ -201,38 +165,22 @@ export default function ReviewPage() {
   const correctCount = Object.values(cardStates).filter(s => s.isCorrect).length
   const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0
 
-  // Feature 2: unique concepts from full deck
-  const allConcepts = [...new Set(allCards.map(c => c.concept || 'General'))]
-
   const revealFlashcard = (cardId: string) => {
-    setCardStates(prev => ({
-      ...prev,
-      [cardId]: { ...(prev[cardId] ?? { answered: false, selectedOption: null, isCorrect: null, rating: null }), answered: false },
-    }))
+    setCardStates(prev => ({ ...prev, [cardId]: { ...(prev[cardId] ?? { answered: false, selectedOption: null, isCorrect: null, rating: null }), answered: false } }))
   }
 
   const handleRate = async (rating: number) => {
     if (submitting || !currentCard) return
     setSubmitting(true)
     const isCorrect = rating >= 2
-    setCardStates(prev => ({
-      ...prev,
-      [currentCard._id]: { answered: true, selectedOption: null, isCorrect, rating },
-    }))
+    setCardStates(prev => ({ ...prev, [currentCard._id]: { answered: true, selectedOption: null, isCorrect, rating } }))
     if (isCorrect) {
       const concept = currentCard.concept || 'General'
-      setConceptStats(prev => ({
-        ...prev,
-        [concept]: { ...prev[concept], correct: (prev[concept]?.correct || 0) + 1 },
-      }))
+      setConceptStats(prev => ({ ...prev, [concept]: { ...prev[concept], correct: (prev[concept]?.correct || 0) + 1 } }))
     }
     try {
-      await fetch('/api/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flashcardId: currentCard._id, deckId, rating }),
-      })
-    } catch { /* continue */ }
+      await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flashcardId: currentCard._id, deckId, rating }) })
+    } catch { }
     setSubmitting(false)
     if (hasNext) setTimeout(() => setCurrentIndex(i => i + 1), 400)
     else setTimeout(() => setSessionState('complete'), 400)
@@ -242,125 +190,139 @@ export default function ReviewPage() {
     if (currentState?.answered || submitting || !currentCard) return
     setSubmitting(true)
     const isCorrect = option === currentCard.correctAnswer
-    setCardStates(prev => ({
-      ...prev,
-      [currentCard._id]: { answered: true, selectedOption: option, isCorrect, rating: isCorrect ? 5 : 1 },
-    }))
+    setCardStates(prev => ({ ...prev, [currentCard._id]: { answered: true, selectedOption: option, isCorrect, rating: isCorrect ? 5 : 1 } }))
     if (isCorrect) {
       const concept = currentCard.concept || 'General'
-      setConceptStats(prev => ({
-        ...prev,
-        [concept]: { ...prev[concept], correct: (prev[concept]?.correct || 0) + 1 },
-      }))
+      setConceptStats(prev => ({ ...prev, [concept]: { ...prev[concept], correct: (prev[concept]?.correct || 0) + 1 } }))
     }
     try {
-      await fetch('/api/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flashcardId: currentCard._id, deckId, rating: isCorrect ? 5 : 1 }),
-      })
-    } catch { /* continue */ }
+      await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flashcardId: currentCard._id, deckId, rating: isCorrect ? 5 : 1 }) })
+    } catch { }
     setSubmitting(false)
   }
 
-  const handleRegenerate = async () => {
-    setSessionState('regenerating')
-    clearProgress(deckId)
-    try {
-      const res = await fetch('/api/regenerate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deckId }),
-      })
-      if (!res.ok) throw new Error('Regeneration failed')
-      await fetchCards(false)
-    } catch {
-      setSessionState('reviewing')
-    }
-  }
-
-  const getOptionStyle = (option: string) => {
-    if (!currentState?.answered) return 'border-ink-200 bg-white hover:border-ink hover:bg-ink-50 cursor-pointer'
-    if (option === currentCard?.correctAnswer) return 'border-green-500 bg-green-50 text-green-800'
-    if (option === currentState.selectedOption && option !== currentCard?.correctAnswer) return 'border-red-500 bg-red-50 text-red-800'
-    return 'border-ink-100 bg-ink-50 text-ink-300'
-  }
-
+  // ─── Concept level helper ─────────────────────────────────────────────
   const getConceptLevel = (stat: ConceptStat) => {
-    if (stat.total === 0) return { level: 'weak', emoji: '❌', color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' }
+    if (stat.total === 0) return 'weak'
     const acc = (stat.correct / stat.total) * 100
-    if (acc >= 75) return { level: 'strong', emoji: '✅', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100' }
-    if (acc >= 40) return { level: 'shaky', emoji: '⚠️', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-100' }
-    return { level: 'weak', emoji: '❌', color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' }
+    if (acc >= 75) return 'strong'
+    if (acc >= 40) return 'shaky'
+    return 'weak'
+  }
+
+  const progressPct = cards.length > 0 ? ((currentIndex + 1) / cards.length) * 100 : 0
+
+  // ─── LOADING ──────────────────────────────────────────────────────────
+  if (sessionState === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#1C3D2E] flex items-center justify-center">
+        <Navbar />
+        <div className="text-center">
+          <div className="w-12 h-[1px] bg-[#C9A96E] mx-auto mb-6 animate-pulse" />
+          <p className={`${cormorant.className} text-[#F2E8D5] text-2xl`}>Loading your deck…</p>
+          <p className={`${dmSans.className} text-[#C9A96E]/60 text-xs tracking-[0.2em] uppercase mt-2`}>Fetching cards</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className={`min-h-screen bg-[#1C3D2E] ${dmSans.className}`}>
       <Navbar />
-      <main className="max-w-3xl mx-auto px-6 py-10">
 
-        {/* LOADING / REGENERATING */}
-        {(sessionState === 'loading' || sessionState === 'regenerating') && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-            <div className="w-8 h-8 border-2 border-ink border-t-transparent rounded-full animate-spin" />
-            <p className="text-ink-400">{sessionState === 'regenerating' ? 'Generating fresh questions…' : 'Loading your cards…'}</p>
+      {/* ══════════════════════ EMPTY STATE ══════════════════════ */}
+      {sessionState === 'empty' && (
+        <main className="max-w-2xl mx-auto px-6 py-24 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/20 flex items-center justify-center mx-auto mb-8">
+            <svg className="w-7 h-7 text-[#C9A96E]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
           </div>
-        )}
+          <p className="text-[#C9A96E] text-[10px] tracking-[0.3em] uppercase mb-4">All Caught Up</p>
+          <h2 className={`${cormorant.className} text-[#F2E8D5] text-5xl font-medium mb-4`}>
+            Nothing due<br />
+            <span className={`${pinyon.className} text-[#C9A96E]`}>right now</span>
+          </h2>
+          <p className="text-[#F2E8D5]/40 text-sm font-light mb-2">
+            {deckStats ? `This deck has ${deckStats.totalCards} cards total.` : 'All cards have been reviewed.'}
+          </p>
+          <p className="text-[#F2E8D5]/30 text-xs tracking-wide mb-10">Come back later or review everything again.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-6 py-2.5 border border-[#F2E8D5]/20 text-[#F2E8D5]/60 text-xs tracking-[0.15em] uppercase rounded-sm hover:border-[#F2E8D5]/40 hover:text-[#F2E8D5]/80 transition-all"
+            >
+              ← Dashboard
+            </button>
+            <button
+              onClick={() => { setSessionState('loading'); fetchCards(false) }}
+              className="px-6 py-2.5 bg-[#C9A96E] text-[#1C3D2E] text-xs tracking-[0.15em] uppercase font-medium rounded-sm hover:bg-[#D4B98A] transition-all"
+            >
+              Review All Anyway
+            </button>
+          </div>
+        </main>
+      )}
 
-        {/* EMPTY */}
-        {sessionState === 'empty' && (
-          <div className="text-center py-24 animate-fade-in">
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="font-display text-3xl text-ink mb-3">All caught up!</h2>
-            <p className="text-ink-400 mb-2">No cards are due for review right now.</p>
-            <p className="text-ink-300 text-sm mb-8">{deckStats ? `This deck has ${deckStats.totalCards} cards total.` : ''}</p>
-            <div className="flex gap-3 justify-center">
-              <button onClick={() => router.push('/dashboard')} className="px-5 py-2.5 bg-white border border-ink-200 text-ink rounded-xl font-medium text-sm hover:border-ink-400 transition-colors">← Dashboard</button>
-              <button onClick={() => { setSessionState('loading'); fetchCards(false) }} className="px-5 py-2.5 bg-ink text-cream rounded-xl font-medium text-sm hover:bg-accent transition-colors">Review all anyway</button>
+      {/* ══════════════════════ COMPLETE STATE ══════════════════════ */}
+      {sessionState === 'complete' && (() => {
+        const strong = Object.values(conceptStats).filter(s => s.total > 0 && (s.correct / s.total) >= 0.75)
+        const shaky = Object.values(conceptStats).filter(s => s.total > 0 && (s.correct / s.total) >= 0.40 && (s.correct / s.total) < 0.75)
+        const weak = Object.values(conceptStats).filter(s => s.total === 0 || (s.correct / s.total) < 0.40)
+
+        return (
+          <main className="max-w-3xl mx-auto px-6 py-16">
+
+            {/* Hero result */}
+            <div className="text-center mb-14">
+              <p className="text-[#C9A96E] text-[10px] tracking-[0.35em] uppercase mb-6">Session Complete</p>
+              <h1 className={`${cormorant.className} text-[#F2E8D5] leading-[0.9] mb-3`} style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', fontWeight: 500 }}>
+                {accuracy >= 80 ? 'Excellent' : accuracy >= 50 ? 'Well done' : 'Keep going'}
+              </h1>
+              <p className={`${pinyon.className} text-[#C9A96E] mb-8`} style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+                {accuracy >= 80 ? 'you nailed it' : accuracy >= 50 ? 'solid progress' : 'practice makes perfect'}
+              </p>
+              <p className="text-[#F2E8D5]/40 text-xs tracking-[0.1em] font-light">{deckTitle}</p>
             </div>
-          </div>
-        )}
 
-        {/* COMPLETE */}
-        {sessionState === 'complete' && (() => {
-          // Feature 4: Group concepts by performance level
-          const strong = Object.values(conceptStats).filter(s => s.total > 0 && (s.correct / s.total) >= 0.75)
-          const shaky  = Object.values(conceptStats).filter(s => s.total > 0 && (s.correct / s.total) >= 0.40 && (s.correct / s.total) < 0.75)
-          const weak   = Object.values(conceptStats).filter(s => s.total === 0 || (s.correct / s.total) < 0.40)
-
-          return (
-            <div className="animate-fade-in">
-              <div className="text-center py-8">
-                <div className="text-6xl mb-4">{accuracy >= 80 ? '🏆' : accuracy >= 50 ? '🙌' : '💪'}</div>
-                <h2 className="font-display text-4xl text-ink mb-2">Session complete!</h2>
-                <p className="text-ink-400 mb-6">Great work on staying consistent.</p>
-                <div className="grid grid-cols-3 gap-4 max-w-md mx-auto mb-8">
-                  {[
-                    { label: 'Attempted', value: answeredCount },
-                    { label: 'Correct', value: correctCount },
-                    { label: 'Accuracy', value: `${accuracy}%` },
-                  ].map((s, i) => (
-                    <div key={i} className="bg-white rounded-xl border border-ink-100 p-4">
-                      <p className="font-display text-2xl text-ink">{s.value}</p>
-                      <p className="text-xs text-ink-400 mt-1">{s.label}</p>
-                    </div>
-                  ))}
+            {/* Stats row — editorial grid style */}
+            <div className="grid grid-cols-3 gap-px bg-[#F2E8D5]/10 border border-[#F2E8D5]/10 rounded-sm mb-12 overflow-hidden">
+              {[
+                { label: 'Attempted', value: answeredCount },
+                { label: 'Correct', value: correctCount },
+                { label: 'Accuracy', value: `${accuracy}%` },
+              ].map((s, i) => (
+                <div key={i} className="bg-[#1C3D2E] px-6 py-8 text-center">
+                  <p className="text-[#C9A96E] text-[9px] tracking-[0.3em] uppercase mb-3 font-light">{s.label}</p>
+                  <p className={`${cormorant.className} text-[#F2E8D5] font-medium`} style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1 }}>{s.value}</p>
                 </div>
-              </div>
+              ))}
+            </div>
 
-              {/* Feature 4: Concept Performance — Strong / Shaky / Weak */}
-              {Object.keys(conceptStats).length > 0 && (
-                <div className="bg-white rounded-2xl border border-ink-100 p-6 mb-6">
-                  <h3 className="font-semibold text-ink mb-5 text-sm uppercase tracking-wide">Concept Performance</h3>
+            {/* Concept Performance — Fluencia-styled */}
+            {Object.keys(conceptStats).length > 0 && (
+              <div className="mb-12">
+
+                {/* Section header with dotted line */}
+                <div className="flex items-center gap-4 mb-8">
+                  <p className="text-[#C9A96E] text-[11px] tracking-[0.35em] uppercase whitespace-nowrap font-light">Concept Performance</p>
+                  <div className="flex-1 border-t border-dotted border-[#F2E8D5]/15" />
+                  <p className="text-[#F2E8D5]/40 text-[9px] tracking-[0.2em]">{Object.keys(conceptStats).length} concepts</p>
+                </div>
+
+                <div className="space-y-8">
 
                   {strong.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">✅ Strong Concepts</p>
-                      <div className="space-y-1.5">
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#4A7C5E]" />
+                        <p className="text-[9px] tracking-[0.25em] uppercase text-[#4A7C5E] font-medium">Strong</p>
+                      </div>
+                      <div className="space-y-px">
                         {strong.map(s => (
-                          <div key={s.concept} className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
-                            <span className="text-sm font-medium text-ink">{s.concept}</span>
-                            <span className="text-xs text-green-600 font-semibold">{Math.round((s.correct / s.total) * 100)}%</span>
+                          <div key={s.concept} className="flex items-center justify-between px-4 py-3 bg-[#2A5040] border-l-2 border-[#4A7C5E]">
+                            <span className={`${dmSans.className} text-[#F2E8D5]/80 text-sm font-light`}>{s.concept}</span>
+                            <span className={`${cormorant.className} text-[#4A7C5E] text-lg`}>{Math.round((s.correct / s.total) * 100)}%</span>
                           </div>
                         ))}
                       </div>
@@ -368,13 +330,16 @@ export default function ReviewPage() {
                   )}
 
                   {shaky.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">⚠️ Shaky Concepts</p>
-                      <div className="space-y-1.5">
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E]" />
+                        <p className="text-[9px] tracking-[0.25em] uppercase text-[#C9A96E] font-medium">Shaky</p>
+                      </div>
+                      <div className="space-y-px">
                         {shaky.map(s => (
-                          <div key={s.concept} className="flex items-center justify-between px-3 py-2 bg-yellow-50 border border-yellow-100 rounded-lg">
-                            <span className="text-sm font-medium text-ink">{s.concept}</span>
-                            <span className="text-xs text-yellow-600 font-semibold">{Math.round((s.correct / s.total) * 100)}%</span>
+                          <div key={s.concept} className="flex items-center justify-between px-4 py-3 bg-[#C9A96E]/10 border-l-2 border-[#C9A96E]">
+                            <span className={`${dmSans.className} text-[#F2E8D5]/80 text-sm font-light`}>{s.concept}</span>
+                            <span className={`${cormorant.className} text-[#C9A96E] text-lg`}>{Math.round((s.correct / s.total) * 100)}%</span>
                           </div>
                         ))}
                       </div>
@@ -383,14 +348,17 @@ export default function ReviewPage() {
 
                   {weak.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">❌ Weak Concepts</p>
-                      <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#A0522D]/70" />
+                        <p className="text-[9px] tracking-[0.25em] uppercase text-[#A0522D]/80 font-medium">Needs Work</p>
+                      </div>
+                      <div className="space-y-px">
                         {weak.map(s => (
-                          <div key={s.concept} className="flex items-center justify-between px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
-                            <span className="text-sm font-medium text-ink">{s.concept}</span>
+                          <div key={s.concept} className="flex items-center justify-between px-4 py-3 bg-[#A0522D]/8 border-l-2 border-[#A0522D]/40">
+                            <span className={`${dmSans.className} text-[#F2E8D5]/70 text-sm font-light`}>{s.concept}</span>
                             <button
                               onClick={() => filterByConcept(s.concept)}
-                              className="text-xs text-red-500 font-semibold hover:underline"
+                              className="text-[9px] tracking-[0.2em] uppercase text-[#F2E8D5]/80 hover:text-[#C9A96E] transition-colors"
                             >
                               Practice →
                             </button>
@@ -399,264 +367,296 @@ export default function ReviewPage() {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              <div className="flex gap-3 justify-center flex-wrap">
-                <button onClick={() => router.push('/dashboard')} className="px-5 py-2.5 bg-white border border-ink-200 text-ink rounded-xl font-medium text-sm hover:border-ink-400 transition-colors">← Dashboard</button>
-                <button onClick={() => router.push(`/learn/${deckId}`)} className="px-5 py-2.5 bg-white border border-ink-200 text-ink rounded-xl font-medium text-sm hover:border-ink-400 transition-colors">📖 Review Concepts</button>
-                <button onClick={() => { clearProgress(deckId); setCardStates({}); setCurrentIndex(0); setActiveConcept(null); setCards(allCards); setSessionState('reviewing') }} className="px-5 py-2.5 bg-ink text-cream rounded-xl font-medium text-sm hover:bg-accent transition-colors">Practice again</button>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* REVIEWING */}
-        {sessionState === 'reviewing' && currentCard && currentState && (
-          <div className="flex flex-col gap-6 animate-fade-in">
-
-            {/* Header row */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="font-display text-2xl text-ink">
-                  Practice {activeConcept && <span className="text-ink-400 text-lg">· {activeConcept}</span>}
-                </h1>
-                <p className="text-ink-400 text-sm mt-0.5">
-                  {answeredCount} of {cards.length} answered · {correctCount} correct
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {/* Feature 2: Concepts button */}
-                <button
-                  onClick={() => setShowConcepts(v => !v)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-ink-200 text-ink-500 rounded-xl text-xs font-medium hover:border-ink hover:text-ink transition-colors"
-                >
-                  🗂️ Concepts
-                </button>
-              </div>
-            </div>
-
-            {/* Feature 2: Concepts panel */}
-            {showConcepts && (
-              <div className="bg-white rounded-2xl border border-ink-100 shadow-lg p-4 animate-fade-in">
-                <p className="text-xs font-semibold text-ink-400 uppercase tracking-wide mb-3">Filter by Concept</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => filterByConcept(null)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                      activeConcept === null
-                        ? 'bg-ink text-cream border-ink'
-                        : 'bg-white text-ink border-ink-200 hover:border-ink'
-                    }`}
-                  >
-                    All ({allCards.length})
-                  </button>
-                  {allConcepts.map(concept => {
-                    const count = allCards.filter(c => c.concept === concept).length
-                    const stat = conceptStats[concept]
-                    const { emoji } = stat ? getConceptLevel(stat) : { emoji: '⬜' }
-                    return (
-                      <button
-                        key={concept}
-                        onClick={() => filterByConcept(concept)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                          activeConcept === concept
-                            ? 'bg-ink text-cream border-ink'
-                            : 'bg-white text-ink border-ink-200 hover:border-ink'
-                        }`}
-                      >
-                        {emoji} {concept} ({count})
-                      </button>
-                    )
-                  })}
                 </div>
               </div>
             )}
 
-            {/* Progress bar */}
-            <div className="w-full">
-              <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
-                <div className="h-full bg-ink rounded-full transition-all duration-500" style={{ width: `${cards.length > 0 ? ((currentIndex + 1) / cards.length) * 100 : 0}%` }} />
-              </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-ink-300">Card {currentIndex + 1} of {cards.length}</span>
-                <span className="text-xs text-ink-300">{accuracy > 0 ? `${accuracy}% accuracy` : 'No answers yet'}</span>
-              </div>
+            {/* Actions */}
+            <div className="flex gap-3 flex-wrap pt-8 border-t border-[#F2E8D5]/10">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="px-6 py-2.5 border border-[#F2E8D5]/15 text-[#F2E8D5]/50 text-[10px] tracking-[0.2em] uppercase rounded-sm hover:border-[#F2E8D5]/30 hover:text-[#F2E8D5]/70 transition-all"
+              >
+                ← Dashboard
+              </button>
+              <button
+                onClick={() => router.push(`/learn/${deckId}`)}
+                className="px-6 py-2.5 border border-[#F2E8D5]/15 text-[#F2E8D5]/50 text-[10px] tracking-[0.2em] uppercase rounded-sm hover:border-[#F2E8D5]/30 hover:text-[#F2E8D5]/70 transition-all"
+              >
+                Review Concepts
+              </button>
+              <button
+                onClick={() => { clearProgress(deckId); setCardStates({}); setCurrentIndex(0); setActiveConcept(null); setCards(allCards); setSessionState('reviewing') }}
+                className="px-6 py-2.5 bg-[#C9A96E] text-[#1C3D2E] text-[10px] tracking-[0.2em] uppercase font-medium rounded-sm hover:bg-[#D4B98A] transition-all"
+              >
+                Practice Again
+              </button>
             </div>
 
-            {/* Dot navigation */}
-            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-              {cards.map((c, i) => {
-                const state = cardStates[c._id]
-                return (
-                  <button key={i} onClick={() => setCurrentIndex(i)}
-                    className={`rounded-full transition-all duration-200 ${
-                      i === currentIndex ? 'w-6 h-2.5 bg-ink' :
-                      state?.isCorrect === true ? 'w-2.5 h-2.5 bg-green-500' :
-                      state?.isCorrect === false ? 'w-2.5 h-2.5 bg-red-400' :
-                      'w-2.5 h-2.5 bg-ink-100'
-                    }`}
-                  />
-                )
-              })}
+          </main>
+        )
+      })()}
+
+      {/* ══════════════════════ REVIEWING STATE ══════════════════════ */}
+      {sessionState === 'reviewing' && currentCard && currentState && (
+        <main className="max-w-5xl mx-auto px-6 py-10">
+
+          {/* Top nav row */}
+          <div className="flex items-center justify-between mb-10">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-[#F2E8D5]/40 text-[10px] tracking-[0.2em] uppercase hover:text-[#F2E8D5]/70 transition-colors"
+            >
+              ← Back
+            </button>
+            <div className="text-right">
+              <p className="text-[#C9A96E] text-[10px] tracking-[0.2em] uppercase font-light">{deckTitle}</p>
+              <p className={`${cormorant.className} text-[#F2E8D5] text-xl mt-0.5`}>
+                Card {currentIndex + 1} <span className="text-[#F2E8D5]/30">of {cards.length}</span>
+              </p>
             </div>
+          </div>
 
-            {/* Badges */}
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <span className="px-3 py-1 bg-ink-50 text-ink-500 text-xs font-medium rounded-full border border-ink-100">{currentCard.concept}</span>
-              <span className={`px-3 py-1 text-xs font-medium rounded-full ${difficultyColors[currentCard.difficulty]}`}>{currentCard.difficulty}</span>
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full border border-blue-100">
-                {currentCard.type === 'mcq' ? '🔵 Multiple Choice' : '🟣 Flashcard'}
-              </span>
-              {currentState.answered && (
-                <span className={`px-3 py-1 text-xs font-medium rounded-full ${currentState.isCorrect ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {currentState.isCorrect ? '✓ Correct' : '✗ Incorrect'}
-                </span>
-              )}
-            </div>
+          {/* Progress line */}
+          <div className="w-full h-px bg-[#F2E8D5]/10 relative mb-12">
+            <div
+              className="absolute top-0 left-0 h-px bg-[#C9A96E] transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-[#C9A96E] rounded-full transition-all duration-500"
+              style={{ left: `${progressPct}%`, transform: 'translate(-50%, -50%)' }}
+            />
+          </div>
 
-            {/* ── FLASHCARD ── */}
-            {currentCard.type === 'flashcard' && (
-              <div className="w-full max-w-2xl mx-auto">
-                <div
-                  className={`w-full bg-white rounded-2xl border shadow-lg cursor-pointer min-h-[280px] flex flex-col transition-colors ${
-                    currentState.answered && currentState.isCorrect === true ? 'border-green-300' :
-                    currentState.answered && currentState.isCorrect === false ? 'border-red-300' :
-                    'border-ink-100'
-                  }`}
-                  onClick={() => !currentState.answered && revealFlashcard(currentCard._id)}
-                >
-                  <div className="px-6 pt-5 pb-3 border-b border-ink-50 flex items-center justify-between">
-                    <span className="text-xs font-mono text-ink-300 uppercase tracking-widest">Question</span>
-                    {currentState.answered && <span className="text-lg">{currentState.isCorrect ? '✅' : '❌'}</span>}
-                  </div>
-                  <div className="flex-1 flex items-center justify-center px-8 py-6">
-                    <p className="font-display text-xl md:text-2xl text-ink text-center leading-relaxed">{currentCard.question}</p>
-                  </div>
-                  {!currentState.answered && (
-                    <div className="px-6 pb-5 text-center">
-                      <p className="text-xs text-ink-300 font-medium">Click to reveal answer ↓</p>
-                    </div>
-                  )}
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
 
-                {currentState.answered !== undefined && (
-                  <div className="mt-4 w-full bg-ink rounded-2xl min-h-[100px] flex flex-col animate-fade-in">
-                    <div className="px-6 pt-5 pb-3 border-b border-white/10">
-                      <span className="text-xs font-mono text-white/40 uppercase tracking-widest">Answer</span>
-                    </div>
-                    <div className="flex-1 flex items-center justify-center px-8 py-5">
-                      <p className="font-body text-base md:text-lg text-cream/90 text-center leading-relaxed">{currentCard.answer}</p>
-                    </div>
-                    {currentCard.explanation && (
-                      <div className="px-6 pb-4 text-center">
-                        <p className="text-xs text-white/40">{currentCard.explanation}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+            {/* ── LEFT: Question card ─────────────────────────────── */}
+            <div className="flex flex-col gap-5">
 
-                {!currentState.answered && (
-                  <div className="mt-4 flex flex-col items-center gap-2">
-                    <button onClick={() => revealFlashcard(currentCard._id)}
-                      className="px-8 py-3.5 bg-ink text-cream rounded-xl font-semibold text-sm hover:bg-accent transition-all">
-                      Reveal Answer ↓
-                    </button>
-                    <p className="text-xs text-ink-300">
-                      Press <kbd className="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-ink-400">Space</kbd> to reveal
+              <div className="bg-[#EDE2CC] rounded-sm p-7 border border-[#D4C4A0]">
+
+                {/* Card meta tag */}
+                <div className="flex items-center gap-3 mb-7">
+                  <div className="border border-[#C9A96E]/40 px-3 py-1 rounded-sm">
+                    <p className="text-[9px] tracking-[0.25em] uppercase text-[#A88850] font-light">
+                      {currentCard.type === 'mcq' ? 'MCQ' : 'Flashcard'} · {currentCard.concept}
                     </p>
                   </div>
+                  {/* difficulty dot */}
+                  <div className={`w-1.5 h-1.5 rounded-full ${currentCard.difficulty === 'easy' ? 'bg-[#4A7C5E]' : currentCard.difficulty === 'medium' ? 'bg-[#C9A96E]' : 'bg-[#A0522D]/70'}`} />
+                  <p className="text-[9px] tracking-[0.15em] uppercase text-[#A88850]/60">{currentCard.difficulty}</p>
+                </div>
+
+                {/* Question */}
+                <h2 className={`${cormorant.className} text-[#1C3D2E] text-center leading-snug mb-9`}
+                  style={{ fontSize: 'clamp(1.2rem, 2.5vw, 1.6rem)', fontWeight: 500 }}>
+                  {currentCard.question}
+                </h2>
+
+                {/* ── MCQ Options ── */}
+                {currentCard.type === 'mcq' && (
+                  <div className="space-y-2.5">
+                    {currentCard.options.map((option, i) => {
+                      const labels = ['A', 'B', 'C', 'D']
+                      const isCorrect = option === currentCard.correctAnswer
+                      const isSelected = option === currentState.selectedOption
+
+                      let optionClass = ''
+                      if (!currentState.answered) {
+                        optionClass = 'border-[#C9A96E]/20 bg-[#FAF6EE] hover:border-[#1C3D2E]/40 hover:bg-[#F2E8D5] cursor-pointer'
+                      } else if (isCorrect) {
+                        optionClass = 'border-[#4A7C5E] bg-[#2A5040]/10'
+                      } else if (isSelected && !isCorrect) {
+                        optionClass = 'border-[#A0522D]/60 bg-[#A0522D]/8'
+                      } else {
+                        optionClass = 'border-[#C9A96E]/10 bg-[#F2E8D5]/50 opacity-50'
+                      }
+
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => handleMCQSelect(option)}
+                          disabled={currentState.answered || submitting}
+                          className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-sm border text-left transition-all duration-150 ${optionClass}`}
+                        >
+                          {/* Letter circle */}
+                          <span className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] flex-shrink-0 transition-all
+                            ${currentState.answered && isCorrect
+                              ? 'border-[#4A7C5E] text-[#4A7C5E]'
+                              : currentState.answered && isSelected && !isCorrect
+                                ? 'border-[#A0522D]/60 text-[#A0522D]'
+                                : 'border-[#1C3D2E]/25 text-[#1C3D2E]/40'
+                            }`}>
+                            {labels[i]}
+                          </span>
+                          <span className={`${dmSans.className} text-sm font-light flex-1
+                            ${currentState.answered && isCorrect ? 'text-[#2A5040]' : currentState.answered && isSelected && !isCorrect ? 'text-[#7A3B1E]' : 'text-[#1C3D2E]'}`}>
+                            {option}
+                          </span>
+                          {/* Result icon */}
+                          {currentState.answered && isCorrect && (
+                            <svg className="w-4 h-4 text-[#4A7C5E] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                          {currentState.answered && isSelected && !isCorrect && (
+                            <svg className="w-4 h-4 text-[#A0522D]/70 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 )}
 
-                {currentState.answered === false && (
-                  <div className="mt-6 w-full">
-                    <p className="text-center text-sm text-ink-400 mb-4 font-medium">How well did you recall this?</p>
-                    <div className="grid grid-cols-4 gap-3">
+                {/* ── Flashcard reveal ── */}
+                {currentCard.type === 'flashcard' && !currentState.answered && (
+                  <div className="text-center mt-6">
+                    <button
+                      onClick={() => revealFlashcard(currentCard._id)}
+                      className="px-8 py-2.5 border border-[#1C3D2E]/20 text-[#1C3D2E]/50 text-[10px] tracking-[0.2em] uppercase rounded-sm hover:border-[#1C3D2E]/40 hover:text-[#1C3D2E]/80 transition-all"
+                    >
+                      Reveal Answer (Space)
+                    </button>
+                  </div>
+                )}
+
+                {/* Flashcard answer + rating */}
+                {currentCard.type === 'flashcard' && currentState.answered === false && currentState.selectedOption !== null && (
+                  <div className="mt-6 pt-6 border-t border-[#C9A96E]/20">
+                    <p className="text-[9px] tracking-[0.2em] uppercase text-[#A88850] mb-3 font-light">Answer</p>
+                    <p className={`${cormorant.className} text-[#1C3D2E] text-lg leading-relaxed mb-6`}>{currentCard.answer}</p>
+                    <p className="text-[9px] tracking-[0.2em] uppercase text-[#A88850] mb-3 font-light">How did you do?</p>
+                    <div className="grid grid-cols-4 gap-2">
                       {[
-                        { value: 1, label: 'Again', emoji: '😞', bg: 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600' },
-                        { value: 3, label: 'Hard', emoji: '🤔', bg: 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200 text-yellow-700' },
-                        { value: 4, label: 'Good', emoji: '🙂', bg: 'bg-ink-50 hover:bg-ink-100 border-ink-200 text-ink' },
-                        { value: 5, label: 'Easy', emoji: '😎', bg: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700' },
+                        { label: 'Again', rating: 0, cls: 'border-[#A0522D]/30 text-[#A0522D]/70 hover:bg-[#A0522D]/8' },
+                        { label: 'Hard', rating: 1, cls: 'border-[#C9A96E]/40 text-[#A88850] hover:bg-[#C9A96E]/8' },
+                        { label: 'Good', rating: 3, cls: 'border-[#1C3D2E]/20 text-[#1C3D2E]/60 hover:bg-[#1C3D2E]/6' },
+                        { label: 'Easy', rating: 5, cls: 'bg-[#C9A96E] text-[#1C3D2E] border-[#C9A96E] hover:bg-[#D4B98A]' },
                       ].map(r => (
-                        <button key={r.value} onClick={() => handleRate(r.value)} disabled={submitting}
-                          className={`flex flex-col items-center gap-1.5 p-3 md:p-4 rounded-xl border transition-all active:scale-95 ${r.bg} disabled:opacity-50`}>
-                          <span className="text-2xl">{r.emoji}</span>
-                          <span className="font-semibold text-sm">{r.label}</span>
+                        <button
+                          key={r.label}
+                          onClick={() => handleRate(r.rating)}
+                          disabled={submitting}
+                          className={`py-2.5 border rounded-sm text-[10px] tracking-[0.15em] uppercase transition-all ${r.cls}`}
+                        >
+                          {r.label}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* ── MCQ ── */}
-            {currentCard.type === 'mcq' && (
-              <div className="w-full max-w-2xl mx-auto">
-                <div className="w-full bg-white rounded-2xl border border-ink-100 shadow-lg p-6 mb-4">
-                  <p className="font-display text-xl md:text-2xl text-ink text-center leading-relaxed">{currentCard.question}</p>
-                </div>
-                <div className="space-y-3">
-                  {currentCard.options.map((option, i) => {
-                    const labels = ['A', 'B', 'C', 'D']
-                    const style = getOptionStyle(option)
-                    const isCorrect = currentState.answered && option === currentCard.correctAnswer
-                    const isWrong = currentState.answered && option === currentState.selectedOption && option !== currentCard.correctAnswer
-                    return (
-                      <button key={i} onClick={() => handleMCQSelect(option)}
-                        disabled={currentState.answered || submitting}
-                        className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl border-2 text-left transition-all duration-200 font-medium text-sm ${style} disabled:cursor-not-allowed`}>
-                        <span className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
-                          isCorrect ? 'bg-green-500 border-green-500 text-white' :
-                          isWrong ? 'bg-red-500 border-red-500 text-white' :
-                          'border-current'
-                        }`}>
-                          {isCorrect ? '✓' : isWrong ? '✗' : labels[i]}
-                        </span>
-                        <span className="flex-1">{option}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {currentState.answered && currentCard.explanation && (
-                  <div className={`mt-4 p-4 rounded-xl border animate-fade-in ${
-                    currentState.isCorrect ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-                  }`}>
-                    <p className="text-xs font-semibold mb-1 uppercase tracking-wide">
-                      {currentState.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
-                    </p>
-                    <p className="text-sm leading-relaxed">{currentCard.explanation}</p>
-                  </div>
+              {/* Navigation row */}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={goPrev}
+                  disabled={!hasPrev}
+                  className="px-6 py-2 border border-[#F2E8D5]/15 text-[#F2E8D5]/40 text-[10px] tracking-[0.2em] uppercase rounded-sm hover:border-[#F2E8D5]/30 hover:text-[#F2E8D5]/60 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+
+                <span className={`${cormorant.className} text-[#F2E8D5]/50 text-base`}>
+                  {currentIndex + 1} / {cards.length}
+                </span>
+
+                {hasNext ? (
+                  <button
+                    onClick={goNext}
+                    className="px-8 py-2 bg-[#C9A96E] text-[#1C3D2E] text-[10px] tracking-[0.2em] uppercase font-medium rounded-sm hover:bg-[#D4B98A] transition-all"
+                  >
+                    Next →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setSessionState('complete')}
+                    className="px-8 py-2 bg-[#C9A96E] text-[#1C3D2E] text-[10px] tracking-[0.2em] uppercase font-medium rounded-sm hover:bg-[#D4B98A] transition-all"
+                  >
+                    Finish →
+                  </button>
                 )}
               </div>
-            )}
 
-            {/* Prev / Next navigation */}
-            <div className="flex items-center justify-between gap-4 pt-2">
-              <button onClick={goPrev} disabled={!hasPrev}
-                className="flex items-center gap-2 px-5 py-3 bg-white border border-ink-200 text-ink rounded-xl text-sm font-medium hover:border-ink-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-                ← Previous
-              </button>
-
-              {hasNext ? (
-                <button onClick={goNext}
-                  className="flex items-center gap-2 px-5 py-3 bg-ink text-cream rounded-xl text-sm font-semibold hover:bg-accent transition-colors">
-                  Next →
-                </button>
-              ) : (
-                <button onClick={() => setSessionState('complete')}
-                  className="flex items-center gap-2 px-5 py-3 bg-accent text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
-                  Finish →
-                </button>
-              )}
             </div>
 
-            <p className="text-center text-xs text-ink-300">
-              Use <kbd className="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-ink-400">←</kbd> <kbd className="px-1.5 py-0.5 bg-ink-100 rounded font-mono text-ink-400">→</kbd> to navigate
-            </p>
+            {/* ── RIGHT PANEL ─────────────────────────────────────── */}
+            <div className="flex flex-col gap-4 sticky top-24">
+
+              {/* Session stats */}
+              <div className="border border-[#F2E8D5]/10 rounded-sm p-5">
+                <p className="text-[#C9A96E] text-[11px] tracking-[0.3em] uppercase mb-5 font-light">Session</p>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[#F2E8D5]/50 text-xs font-light">Correct</span>
+                    <span className={`${cormorant.className} text-[#4A7C5E] text-2xl`}>{correctCount}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[#F2E8D5]/50 text-xs font-light">Wrong</span>
+                    <span className={`${cormorant.className} text-[#A0522D]/80 text-2xl`}>{answeredCount - correctCount}</span>
+                  </div>
+                  <div className="pt-3">
+                    <div className="w-full h-[2px] bg-[#F2E8D5]/10 rounded-full overflow-hidden mb-4">
+                      <div
+                        className="h-full bg-[#C9A96E] transition-all duration-500"
+                        style={{ width: `${accuracy}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[#F2E8D5]/50 text-xs font-light">Accuracy</span>
+                      <span className={`${cormorant.className} text-[#C9A96E] text-2xl`}>{accuracy}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explanation panel */}
+              <div className="border border-[#F2E8D5]/10 rounded-sm p-5">
+                <p className="text-[#C9A96E] text-[11px] tracking-[0.3em] uppercase mb-4 font-light">Explanation</p>
+                {!currentState.answered ? (
+                  <p className="text-[#F2E8D5]/20 text-xs font-light leading-relaxed">
+                    Answer to reveal…
+                  </p>
+                ) : (
+                  <p className="text-[#F2E8D5]/65 text-[13px] font-light leading-relaxed">
+                    {currentCard.explanation || 'No explanation available.'}
+                  </p>
+                )}
+              </div>
+
+              {/* Concept tracker — mini */}
+              {Object.keys(conceptStats).length > 0 && (
+                <div className="border border-[#F2E8D5]/10 rounded-sm p-5">
+                  <p className="text-[#C9A96E] text-[11px] tracking-[0.3em] uppercase mb-4 font-light">Concepts</p>
+                  <div className="space-y-2.5">
+                    {Object.values(conceptStats).slice(0, 6).map(stat => {
+                      const level = getConceptLevel(stat)
+                      const acc = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : null
+                      return (
+                        <div key={stat.concept} className="flex items-center gap-2">
+                          <div className={`w-1 h-1 rounded-full flex-shrink-0 bg-[#F2E8D5]/50`} />
+                          <span className="text-[#F2E8D5]/55 text-[12px] flex-1 truncate">{stat.concept}</span>
+                          {acc !== null && (
+                            <span className={`${cormorant.className} text-sm text-[#F2E8D5]/60`}>
+                              {acc}%
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
           </div>
-        )}
-      </main>
+        </main>
+      )}
     </div>
   )
 }

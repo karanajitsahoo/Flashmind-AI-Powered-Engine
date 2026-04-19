@@ -1,142 +1,130 @@
 import Link from 'next/link'
+import { DM_Sans, Cormorant_Garamond } from 'next/font/google'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
+})
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+})
+
+
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-cream grain">
-      {/* Nav */}
-      <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-ink rounded-lg flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="1" fill="#f9f7f3"/>
-              <rect x="9" y="1" width="6" height="6" rx="1" fill="#f9f7f3" opacity="0.5"/>
-              <rect x="1" y="9" width="6" height="6" rx="1" fill="#f9f7f3" opacity="0.5"/>
-              <rect x="9" y="9" width="6" height="6" rx="1" fill="#f9f7f3"/>
-            </svg>
-          </div>
-          <span className="font-display text-lg text-ink">Flashcard Engine</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className="px-4 py-2 text-sm text-ink-500 hover:text-ink transition-colors">
-            Dashboard
-          </Link>
-          <Link href="/upload" className="px-4 py-2 bg-ink text-cream rounded-lg text-sm font-medium hover:bg-accent transition-colors">
-            Get started
-          </Link>
-        </div>
-      </nav>
-
+    <main className={`min-h-screen bg-[#F2E8D5] ${dmSans.className}`}>
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent-light border border-accent/20 rounded-full text-sm text-accent font-medium mb-8">
-          <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-          AI-powered spaced repetition
+      <section className="min-h-[calc(100vh-64px)] flex items-start justify-center pt-24 md:pt-48 relative bg-[#1C3D2E]">
+
+
+        {/* Grid Background */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div
+            className="w-full h-full"
+            style={{
+              backgroundImage: `
+          linear-gradient(rgba(242,232,213,0.2) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(242,232,213,0.2) 1px, transparent 1px)
+        `,
+              backgroundSize: '60px 60px',
+            }}
+          />
         </div>
 
-        <h1 className="font-display text-5xl md:text-7xl text-ink mb-6 leading-tight">
-          Turn any PDF into
-          <span className="block text-accent italic">smart flashcards</span>
-        </h1>
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-6 text-center -translate-y-8 md:-translate-y-12">
 
-        <p className="text-ink-500 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-          Upload your study materials and let AI generate high-quality flashcards. 
-          Then master them with the proven SM-2 spaced repetition algorithm.
-        </p>
+          {/* Label */}
+          <p className="text-xs tracking-[0.25em] ${dmSans.className} font-light uppercase text-[#C9A96E] mb-8">
+            AI-powered spaced repetition
+          </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
-          <Link
-            href="/upload"
-            className="px-8 py-4 bg-ink text-cream rounded-xl text-base font-semibold hover:bg-accent transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
-          >
-            Upload a PDF →
-          </Link>
-          <Link
-            href="/dashboard"
-            className="px-8 py-4 bg-white border border-ink-200 text-ink rounded-xl text-base font-semibold hover:border-ink-400 transition-all duration-200"
-          >
-            View dashboard
-          </Link>
-        </div>
-        <p className="text-ink-300 text-sm">No account needed · Free to use</p>
-      </section>
-
-      {/* Flow diagram */}
-      <section className="max-w-5xl mx-auto px-6 pb-20">
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            {
-              step: '01',
-              title: 'Upload PDF',
-              desc: 'Drop any study material — textbook chapters, lecture notes, research papers.',
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14,2 14,8 20,8"/>
-                  <line x1="12" y1="18" x2="12" y2="12"/>
-                  <line x1="9" y1="15" x2="15" y2="15"/>
-                </svg>
-              ),
-            },
-            {
-              step: '02',
-              title: 'AI Generates Cards',
-              desc: 'GPT-4 extracts definitions, concepts, relationships and edge cases into flashcards.',
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/>
-                  <path d="M12 8v4l3 3"/>
-                </svg>
-              ),
-            },
-            {
-              step: '03',
-              title: 'Study & Retain',
-              desc: 'Review with spaced repetition. Cards due when memory fades — not before, not after.',
-              icon: (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-              ),
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl border border-ink-100 p-6 shadow-card hover:shadow-card-hover transition-all duration-200 hover:-translate-y-0.5"
+          {/* Heading */}
+          <h1 className="text-6xl md:text-8xl text-[#F2E8D5] leading-tight">
+            <span className="block font-serif tracking-[0.08em]">
+              YOUR PATH TO
+            </span>
+            <span
+              className="text-[#C9A96E]"
+              style={{
+                fontFamily: 'Pinyon Script, cursive',
+                fontSize: '1.6em'
+              }}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 bg-ink-50 rounded-xl flex items-center justify-center text-ink-500">
-                  {item.icon}
-                </div>
-                <span className="font-mono text-3xl font-bold text-ink-100">{item.step}</span>
-              </div>
-              <h3 className="font-display text-xl text-ink mb-2">{item.title}</h3>
-              <p className="text-ink-400 text-sm leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
+              mastery
+            </span>
+            <span className="block font-serif tracking-[0.08em] mt-1">
+              STARTS HERE
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-[#F2E8D5]/70 text-[14px] mt-10 mb-14 ${dmSans.className} tracking-[0.05em] font-light leading-relaxed">
+            Upload your study materials and let AI generate high-quality flashcards.
+            Then master them with spaced repetition.
+          </p>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-10 justify-center items-center mt-4">
+            <Link
+              href="/upload"
+              className="bg-[#C9A96E] text-[#1C3D2E] px-10 py-3.5 text-sm ${dmSans.className} font-light uppercase tracking-[0.2em] rounded-sm hover:bg-[#D4B98A] transition-all duration-300"
+            >
+              Upload a PDF
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="border border-[#F2E8D5]/40 text-[#F2E8D5] px-8 py-3 text-sm ${dmSans.className} font-light uppercase tracking-widest rounded-sm hover:border-[#F2E8D5] transition-all duration-300"
+            >
+              View Dashboard
+            </Link>
+          </div>
+
         </div>
       </section>
 
       {/* Features */}
-      <section className="border-t border-ink-100 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-20">
-          <h2 className="font-display text-3xl md:text-4xl text-ink text-center mb-12">
-            Built for serious learners
+      <section className="min-h-[calc(100vh-144px)] bg-[#F2E8D5]">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <p className="text-sm tracking-[0.3em] ${dmSans.className} font-light uppercase text-[#1C3D2E]/40 text-center mb-3">
+            WHAT WE OFFER
+          </p>
+
+          <h2 className="text-5xl md:text-5xl font-serif text-[#1C3D2E] text-center leading-tight">
+            Our philosophy
+            <span
+              className="block text-[#C9A96E] text-4xl md:text-6xl mb-3 → mb-4"
+              style={{ fontFamily: 'Pinyon Script' }}
+            >
+              in every step
+            </span>
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="mt-12"></div>
+          <div className="grid md:grid-cols-3 border border-[#1C3D2E]/30">
             {[
-              { icon: '🧠', title: 'SM-2 Algorithm', desc: 'The same science-backed algorithm used by Anki. Intervals grow as you learn.' },
-              { icon: '✨', title: 'Quality Cards', desc: 'AI focuses on concepts, definitions, relationships — not random sentences.' },
-              { icon: '📊', title: 'Progress Tracking', desc: 'See accuracy, streak, and daily activity at a glance on your dashboard.' },
-              { icon: '🔄', title: 'Flip Animation', desc: 'Satisfying card flip reveals the answer. Muscle memory included.' },
-              { icon: '📱', title: 'Mobile Ready', desc: 'Study on any device. Fully responsive from phone to desktop.' },
-              { icon: '🔥', title: 'Streak Counter', desc: 'Daily streaks keep you consistent. Miss a day and the chain breaks.' },
+              { title: 'SM-2 Algorithm', desc: 'The same science-backed algorithm used by Anki. Intervals grow as you learn.' },
+              { title: 'Quality Cards', desc: 'AI focuses on concepts, definitions, relationships — not random sentences.' },
+              { title: 'Progress Tracking', desc: 'See accuracy, streak, and daily activity at a glance on your dashboard.' },
+              { title: 'Active Recall System', desc: 'Questions are designed to force recall & not only recognition, hence improving long-term retention.' },
+              { title: 'Mobile Ready', desc: 'Study on any device. Fully responsive from phone to desktop.' },
+              { title: 'Instant Feedback Loop', desc: 'Get immediate explanations after every response to reinforce learning and correct mistakes instantly.' },
             ].map((f, i) => (
-              <div key={i} className="flex gap-4">
-                <span className="text-2xl shrink-0">{f.icon}</span>
+              <div
+                key={i} 
+                className={`p-8 
+                  ${i % 3 !== 2 ? 'border-r' : ''} 
+                  ${i < 3 ? 'border-b' : ''} 
+                  border-[#1C3D2E]/20`}>
                 <div>
-                  <h4 className="font-semibold text-ink mb-1">{f.title}</h4>
-                  <p className="text-ink-400 text-sm leading-relaxed">{f.desc}</p>
+                  <span className={`text-3xl ${cormorant.className} text-[#1C3D2E]/10 block mb-2`}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <h4 className={`${cormorant.className} text-lg text-[#1C3D2E]/90 mb-2`}>{f.title}</h4>
+                  <p className="text-[#1C3D2E]/60 text-sm leading-relaxed ${dmSans.className} leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -144,22 +132,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <h2 className="font-display text-4xl text-ink mb-4">Ready to start learning?</h2>
-        <p className="text-ink-400 mb-8">Upload your first PDF and have flashcards in under 60 seconds.</p>
-        <Link
-          href="/upload"
-          className="inline-flex items-center gap-2 px-8 py-4 bg-accent text-cream rounded-xl text-base font-semibold hover:bg-accent-hover transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
-        >
-          Upload PDF now →
-        </Link>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-ink-100 py-8">
         <p className="text-center text-ink-300 text-sm">
-          Flashcard Engine · Built with Next.js, OpenAI & MongoDB
+          Flashcard Engine · Built with HTML, CSS, Next.js, Groq & MongoDB
         </p>
       </footer>
     </main>

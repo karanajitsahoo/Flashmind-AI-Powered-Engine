@@ -15,12 +15,19 @@ export async function POST(req: NextRequest) {
     const { text, filename } = await req.json()
 
     if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Text content required' }, { status: 400 })
+      return NextResponse.json({
+        error: 'Invalid or empty input text'
+      }, { status: 400 })
     }
 
     await connectDB()
 
-    const title = await generateDeckTitle(text)
+    let title = 'Generated Deck'
+    try {
+      title = await generateDeckTitle(text)
+    } catch (err) {
+      console.error('Title generation failed:', err)
+    }
 
     const deck = await Deck.create({
       userId: 'default',
@@ -37,7 +44,9 @@ export async function POST(req: NextRequest) {
 
     if (chunks.length === 0) {
       await Deck.findByIdAndDelete(deck._id)
-      return NextResponse.json({ error: 'No processable content found' }, { status: 422 })
+      return NextResponse.json({
+        error: 'No processable content found'
+      }, { status: 422 })
     }
 
     // Practice cards (chunked)
@@ -51,18 +60,25 @@ export async function POST(req: NextRequest) {
       try {
         const cards = await generateFlashcardsFromChunk(chunks[i], i, chunks.length)
         allPracticeCards.push(...cards)
-      } catch (err) {
-        console.error(`Error processing chunk ${i}:`, err)
+      } catch (err: any) {
+        console.error(`Error processing chunk ${i}:`, err?.message || err)
       }
     }
 
     // Learning cards (whole text)
-    let learningCardsRaw = await generateLearningCards(text) || []
+    let learningCardsRaw: any[] = []
+    try {
+      learningCardsRaw = await generateLearningCards(text) || []
+    } catch (err) {
+      console.error('Learning cards failed:', err)
+    }
     console.log("Learning cards generated:", learningCardsRaw.length)
 
     if (allPracticeCards.length === 0 && learningCardsRaw.length === 0) {
       await Deck.findByIdAndDelete(deck._id)
-      return NextResponse.json({ error: 'Failed to generate content. Please try again.' }, { status: 500 })
+      return NextResponse.json({
+        error: 'No content generated'
+      }, { status: 500 })
     }
 
     // ── Deduplicate practice cards ────────────────────────────────────────────
@@ -131,11 +147,11 @@ export async function POST(req: NextRequest) {
       overallStats: { totalQuestions: uniquePractice.length, attempted: 0, correct: 0, accuracy: 0 },
     })
   } catch (err: any) {
-  console.error('Generate error:', err)
+    console.error('Generate error:', err)
 
-  return NextResponse.json({
-    error: 'Failed to generate flashcards',
-    details: err?.message || 'Unknown error'
-  }, { status: 500 })
-}
+    return NextResponse.json({
+      error: 'Failed to generate flashcards',
+      details: err?.message || 'Unknown error'
+    }, { status: 500 })
+  }
 }

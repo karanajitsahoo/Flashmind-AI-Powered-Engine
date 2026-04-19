@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
+import Navbar from '@/components/Navbar'
+
 
 export const metadata: Metadata = {
   title: 'Flashcard Engine — AI-Powered Learning',
   description: 'Turn any PDF into smart flashcards with spaced repetition',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/icon.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,25 +16,32 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
+
+        <link href="https://fonts.googleapis.com/css2?family=Pinyon+Script&display=swap" rel="stylesheet" />
+
+      
       </head>
-      <body className="font-body bg-cream text-ink antialiased">
+      <body className="bg-[#F2E8D5] text-[#1A1A1A] antialiased font-[Inter]">
+
+        <Navbar />
+
         <Toaster
           position="top-center"
           toastOptions={{
             style: {
-              background: '#0f0e0d',
-              color: '#f9f7f3',
-              fontFamily: 'DM Sans, sans-serif',
-              borderRadius: '10px',
-              fontSize: '14px',
+              background: '#1C3D2E',
+              color: '#F2E8D5',
+              fontFamily: 'Inter, sans-serif',
+              borderRadius: '999px',
+              padding: '12px 18px',
             },
           }}
         />
-        {children}
+
+        <main className="pt-16">
+          {children}
+        </main>
+
       </body>
     </html>
   )
