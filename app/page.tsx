@@ -135,7 +135,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-ink-100 py-8">
         <p className="text-center text-ink-300 text-sm">
-          Flashcard Engine · Built with HTML, CSS, Next.js, Groq & MongoDB
+          Flashcard Engine · Built with HTML, CSS, Node.js, React.js Groq[LLaMa] & MongoDB
         </p>
       </footer>
     </main>
