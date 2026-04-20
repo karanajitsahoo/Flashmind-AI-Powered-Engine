@@ -5,8 +5,11 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/Navbar'
 import DeckCard from '@/components/DeckCard'
-import { Cormorant_Garamond } from 'next/font/google'
-
+import { Cormorant_Garamond, DM_Sans } from 'next/font/google'
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
+})
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -98,6 +101,20 @@ export default function DashboardPage() {
   )
 
   const totalDue = decks.reduce((sum, d) => sum + d.dueCount, 0)
+
+  // ── LOADING ──────────────────────────────────────────────────────────
+    if (loading) {
+      return (
+        <div className={`min-h-screen bg-[#1C3D2E] flex items-center justify-center ${dmSans.className}`}>
+          <Navbar />
+          <div className="text-center">
+            <div className="w-12 h-px bg-[#C9A96E] mx-auto mb-6 animate-pulse" />
+            <p className={`${cormorant.className} text-[#F2E8D5] text-2xl`}>Loading your dashboard…</p>
+            <p className={`${dmSans.className} text-[#C9A96E]/60 text-[10px] tracking-[0.2em] uppercase mt-2`}>Please wait</p>
+          </div>
+        </div>
+      )
+    }
 
   return (
     <div className="min-h-screen bg-[#f4ede2]">

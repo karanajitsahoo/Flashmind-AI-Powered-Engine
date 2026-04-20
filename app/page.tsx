@@ -91,16 +91,16 @@ export default function Home() {
       <section className="min-h-[calc(100vh-144px)] bg-[#F2E8D5]">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <p className="text-sm tracking-[0.3em] ${dmSans.className} font-light uppercase text-[#1C3D2E]/40 text-center mb-3">
-            WHAT WE OFFER
+            WHAT IT OFFERS
           </p>
 
           <h2 className="text-5xl md:text-5xl font-serif text-[#1C3D2E] text-center leading-tight">
-            Our philosophy
+            The philosophy
             <span
               className="block text-[#C9A96E] text-4xl md:text-6xl mb-3 → mb-4"
               style={{ fontFamily: 'Pinyon Script' }}
             >
-              in every step
+              behind every step
             </span>
           </h2>
           <div className="mt-12"></div>
