@@ -200,7 +200,7 @@ Categories:
 
 **Karanajit Sahoo**
 
-Built with ♥ using Next.js, OpenAI, and MongoDB Atlas.
+Built with ♥ using Next.js, GROQ, and MongoDB Atlas.
 
 ---
 
